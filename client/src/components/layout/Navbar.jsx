@@ -68,40 +68,43 @@ export default function Navbar() {
                   to={getDashboardRoute(user.role)}
                   className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors ${
                     location.pathname.includes('/dashboard')
-                      ? 'text-teal-700 bg-teal-50'
+                      ? 'text-teal-700 bg-teal-50 font-bold'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
                   Dashboard
                 </Link>
 
-                {/* Documents Vault Link */}
-                <Link
-                  to="/documents"
-                  className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                    location.pathname.startsWith('/documents')
-                      ? 'text-teal-700 bg-teal-50'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  Documents
-                </Link>
+                {/* Documents & Consents: Patient & Doctor workflows */}
+                {(user.role === 'PATIENT' || user.role === 'DOCTOR') && (
+                  <>
+                    <Link
+                      to="/documents"
+                      className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                        location.pathname.startsWith('/documents')
+                          ? 'text-teal-700 bg-teal-50 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      {user.role === 'PATIENT' ? 'My Documents' : 'Documents'}
+                    </Link>
 
-                {/* Digital Consents Hub Link */}
-                <Link
-                  to="/consents"
-                  className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-                    location.pathname.startsWith('/consents')
-                      ? 'text-teal-700 bg-teal-50 font-bold'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  <FileCheck2 className="w-4 h-4 text-teal-600" />
-                  Consents
-                </Link>
+                    <Link
+                      to="/consents"
+                      className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                        location.pathname.startsWith('/consents')
+                          ? 'text-teal-700 bg-teal-50 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <FileCheck2 className="w-4 h-4 text-teal-600" />
+                      {user.role === 'PATIENT' ? 'My Consents' : 'Consents'}
+                    </Link>
+                  </>
+                )}
 
-                {/* Audit Trail Link (Admin / Auditor / Doctor) */}
-                {(user.role === 'ADMIN' || user.role === 'AUDITOR' || user.role === 'DOCTOR') && (
+                {/* Audit Trail: strictly ADMIN and AUDITOR governance */}
+                {(user.role === 'ADMIN' || user.role === 'AUDITOR') && (
                   <Link
                     to="/audit-trail"
                     className={`text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
@@ -135,59 +138,27 @@ export default function Navbar() {
                   </button>
 
                   {userDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                      <div className="px-3.5 py-2 border-b border-slate-100">
-                        <p className="text-xs text-slate-400">Signed in as</p>
-                        <p className="text-xs font-bold text-slate-800 truncate">{user.name}</p>
-                        <p className="text-[11px] text-teal-600 font-mono mt-0.5">{user.email}</p>
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="px-4 py-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Signed in as</p>
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${roleColors[user.role]}`}>
+                            {user.role}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-slate-900 truncate">{user.name}</p>
+                        <p className="text-xs text-slate-500 font-mono truncate mt-0.5">{user.email}</p>
                       </div>
 
-                      <div className="py-1">
-                        <Link
-                          to={getDashboardRoute(user.role)}
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-teal-700"
-                        >
-                          <Activity className="w-4 h-4 mr-2.5 text-slate-400" />
-                          Portal Dashboard
-                        </Link>
-                        <Link
-                          to="/documents"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-teal-700"
-                        >
-                          <FileText className="w-4 h-4 mr-2.5 text-slate-400" />
-                          Documents Vault
-                        </Link>
-                        <Link
-                          to="/consents"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-teal-700"
-                        >
-                          <FileCheck2 className="w-4 h-4 mr-2.5 text-slate-400" />
-                          Digital Consents
-                        </Link>
-                        {(user.role === 'ADMIN' || user.role === 'AUDITOR' || user.role === 'DOCTOR') && (
-                          <Link
-                            to="/audit-trail"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-teal-700"
-                          >
-                            <History className="w-4 h-4 mr-2.5 text-slate-400" />
-                            Immutable Audit Ledger
-                          </Link>
-                        )}
-                      </div>
-
-                      <div className="border-t border-slate-100 py-1">
+                      <div className="pt-2 px-3">
                         <button
                           onClick={() => {
                             setUserDropdownOpen(false);
                             logout();
                           }}
-                          className="w-full flex items-center px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                          className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
                         >
-                          <LogOut className="w-4 h-4 mr-2.5" />
+                          <LogOut className="w-4 h-4" />
                           Sign Out
                         </button>
                       </div>
@@ -245,23 +216,27 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="block text-sm font-semibold text-slate-700 hover:text-teal-600 py-1.5"
               >
-                Go to Dashboard
+                Dashboard
               </Link>
-              <Link
-                to="/documents"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-sm font-semibold text-slate-700 hover:text-teal-600 py-1.5"
-              >
-                Medical Documents Vault
-              </Link>
-              <Link
-                to="/consents"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-sm font-semibold text-slate-700 hover:text-teal-600 py-1.5"
-              >
-                Digital Consents Hub
-              </Link>
-              {(user.role === 'ADMIN' || user.role === 'AUDITOR' || user.role === 'DOCTOR') && (
+              {(user.role === 'PATIENT' || user.role === 'DOCTOR') && (
+                <>
+                  <Link
+                    to="/documents"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-sm font-semibold text-slate-700 hover:text-teal-600 py-1.5"
+                  >
+                    {user.role === 'PATIENT' ? 'My Medical Documents' : 'Patient Documents'}
+                  </Link>
+                  <Link
+                    to="/consents"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-sm font-semibold text-slate-700 hover:text-teal-600 py-1.5"
+                  >
+                    {user.role === 'PATIENT' ? 'My Consents' : 'Digital Consents'}
+                  </Link>
+                </>
+              )}
+              {(user.role === 'ADMIN' || user.role === 'AUDITOR') && (
                 <Link
                   to="/audit-trail"
                   onClick={() => setMobileMenuOpen(false)}

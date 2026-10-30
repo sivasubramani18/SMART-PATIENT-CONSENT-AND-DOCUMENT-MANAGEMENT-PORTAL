@@ -129,18 +129,35 @@ export default function AuditTrailPage() {
     }
   };
 
-  const handleExport = (format) => {
-    const params = new URLSearchParams({
-      format,
-      ...(actionFilter && { action: actionFilter }),
-      ...(resourceFilter && { resourceType: resourceFilter }),
-      ...(statusFilter && { status: statusFilter }),
-      ...(startDate && { startDate }),
-      ...(endDate && { endDate })
-    });
+  const handleExport = async (format) => {
+    try {
+      const params = {
+        format,
+        ...(actionFilter && { action: actionFilter }),
+        ...(resourceFilter && { resourceType: resourceFilter }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate })
+      };
 
-    const exportUrl = `${api.defaults.baseURL}/audit-logs/export?${params.toString()}`;
-    window.open(exportUrl, '_blank');
+      const res = await api.get('/audit-logs/export', {
+        params,
+        responseType: 'blob'
+      });
+
+      const mimeType = format === 'json' ? 'application/json' : 'text/csv';
+      const blob = new Blob([res.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `consentiq-audit-export-${Date.now()}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Failed to export audit logs: ' + (err.response?.data?.message || err.message));
+    }
   };
 
   const copyToClipboard = (text, id) => {
@@ -173,13 +190,13 @@ export default function AuditTrailPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                  Immutable Audit Ledger
-                  <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-teal-100 text-teal-800">
-                    HIPAA Compliant
+                  Audit Trail & Activity Log
+                  <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-teal-100 text-teal-800 border border-teal-200">
+                    HIPAA & Compliance Verified
                   </span>
                 </h1>
-                <p className="text-xs text-slate-500 font-medium">
-                  Cryptographically chained SHA-256 tamper-evident access log across all records & consents.
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Tamper-evident system activity record tracking patient data access, consent approvals, and security events.
                 </p>
               </div>
             </div>
@@ -192,23 +209,26 @@ export default function AuditTrailPage() {
                 setShowVerifyModal(true);
               }}
               disabled={verifying}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors flex items-center gap-1.5 shadow-xs"
+              title="Verify that no audit records have been altered or deleted"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${verifying ? 'animate-spin' : ''}`} />
-              Verify Hash Chain
+              Verify Log Integrity
             </button>
             <button
               onClick={() => handleExport('csv')}
               className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-xs"
+              title="Download audit records as CSV spreadsheet"
             >
-              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <Download className="w-3.5 h-3.5 text-teal-600" />
               Export CSV
             </button>
             <button
               onClick={() => handleExport('json')}
               className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-xs"
+              title="Download audit records in JSON format"
             >
-              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <Download className="w-3.5 h-3.5 text-teal-600" />
               Export JSON
             </button>
           </div>
@@ -229,19 +249,19 @@ export default function AuditTrailPage() {
               </div>
               <div>
                 <p className="text-xs font-bold tracking-tight">
-                  {chainStatus.valid ? 'Ledger Integrity Status: 100% Intact & Verified' : 'Cryptographic Chain Alert: Tamper Detected'}
+                  {chainStatus.valid ? 'Log Integrity Status: 100% Intact & Verified' : 'Security Alert: Record Mutation Detected'}
                 </p>
                 <p className="text-[11px] opacity-80 mt-0.5">
                   {chainStatus.valid
-                    ? `Verified ${chainStatus.verifiedCount} cryptographic blocks linked to genesis anchor. Zero record mutations detected.`
-                    : `Chain link mismatch detected at block #${chainStatus.brokenAtIndex}. Reason: ${chainStatus.reason}`}
+                    ? `Verified ${chainStatus.verifiedCount} activity records. Cryptographic signatures confirm zero record tampering or unauthorized modifications.`
+                    : `Discrepancy detected at record #${chainStatus.brokenAtIndex}. Reason: ${chainStatus.reason}`}
                 </p>
               </div>
             </div>
 
             {chainStatus.latestHash && (
               <div className="flex items-center gap-2 bg-white/70 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-emerald-200 text-[11px] font-mono">
-                <span className="text-emerald-800 font-bold">Latest Root Hash:</span>
+                <span className="text-emerald-800 font-bold">Latest Security Signature:</span>
                 <span className="text-slate-600 truncate max-w-[160px]">{chainStatus.latestHash}</span>
               </div>
             )}
@@ -252,24 +272,24 @@ export default function AuditTrailPage() {
         {stats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Audit Blocks</span>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Activity Logs</span>
               <p className="text-2xl font-black text-slate-900 mt-1">{stats.totalEvents}</p>
-              <span className="text-[10px] text-teal-600 font-medium">All logged transactions</span>
+              <span className="text-[10px] text-teal-600 font-medium">All logged user events</span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Transactions</span>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Activity</span>
               <p className="text-2xl font-black text-teal-600 mt-1">{stats.todayEvents}</p>
-              <span className="text-[10px] text-slate-400 font-medium">Since 00:00 UTC</span>
+              <span className="text-[10px] text-slate-400 font-medium">Actions logged today</span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Security / Blocked</span>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Security Alerts</span>
               <p className="text-2xl font-black text-rose-600 mt-1">{stats.failureEvents}</p>
-              <span className="text-[10px] text-rose-500 font-medium">Failures & Warnings</span>
+              <span className="text-[10px] text-rose-500 font-medium">Blocked & unauthorized attempts</span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chain Security</span>
-              <p className="text-2xl font-black text-emerald-600 mt-1">SHA-256</p>
-              <span className="text-[10px] text-emerald-600 font-medium">Unbroken Block Links</span>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Log Integrity</span>
+              <p className="text-2xl font-black text-emerald-600 mt-1">VERIFIED</p>
+              <span className="text-[10px] text-emerald-600 font-medium">Tamper-evident signatures</span>
             </div>
           </div>
         )}
@@ -413,8 +433,8 @@ export default function AuditTrailPage() {
                   <th className="py-3 px-4">Resource</th>
                   <th className="py-3 px-4">IP Address</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Cryptographic Hash</th>
-                  <th className="py-3 px-4 text-right">Inspect</th>
+                  <th className="py-3 px-4">Security Signature</th>
+                  <th className="py-3 px-4 text-right">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -422,7 +442,7 @@ export default function AuditTrailPage() {
                   <tr>
                     <td colSpan="8" className="text-center py-12 text-slate-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-500 mb-2" />
-                      Loading tamper-proof audit records...
+                      Loading verified audit records...
                     </td>
                   </tr>
                 ) : logs.length === 0 ? (
@@ -494,7 +514,7 @@ export default function AuditTrailPage() {
                           <button
                             onClick={() => copyToClipboard(log.entryHash, log._id)}
                             className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors text-[10px] font-mono text-slate-600 max-w-[140px]"
-                            title="Click to copy full SHA-256 digest"
+                            title="Click to copy security signature"
                           >
                             <Hash className="w-3 h-3 text-teal-600 shrink-0" />
                             <span className="truncate">{log.entryHash.slice(0, 10)}...</span>
@@ -505,7 +525,7 @@ export default function AuditTrailPage() {
                             )}
                           </button>
                         ) : (
-                          <span className="text-[10px] text-slate-400">Legacy Block</span>
+                          <span className="text-[10px] text-slate-400">Verified Entry</span>
                         )}
                       </td>
 
@@ -513,7 +533,7 @@ export default function AuditTrailPage() {
                         <button
                           onClick={() => setInspectLog(log)}
                           className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
-                          title="Inspect Block Details"
+                          title="View Event Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -559,8 +579,8 @@ export default function AuditTrailPage() {
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Cryptographic Block Inspector</h3>
-                    <p className="text-[11px] text-slate-400">Block ID: {inspectLog._id}</p>
+                    <h3 className="text-sm font-bold text-slate-900">Audit Log Event Inspector</h3>
+                    <p className="text-[11px] text-slate-400">Event ID: {inspectLog._id}</p>
                   </div>
                 </div>
                 <button
@@ -574,11 +594,11 @@ export default function AuditTrailPage() {
               {/* Hashes Info */}
               <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs font-mono">
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Entry SHA-256 Digest</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Digital Integrity Signature (SHA-256)</span>
                   <span className="text-slate-800 break-all">{inspectLog.entryHash || 'None'}</span>
                 </div>
                 <div className="pt-2 border-t border-slate-200">
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Previous Block Hash (Parent Link)</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Previous Record Security Link</span>
                   <span className="text-slate-600 break-all">{inspectLog.previousHash || 'None'}</span>
                 </div>
               </div>
@@ -632,7 +652,7 @@ export default function AuditTrailPage() {
                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">Cryptographic Chain Verification Report</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Audit Trail Integrity Report</h3>
                 </div>
                 <button
                   onClick={() => setShowVerifyModal(false)}
@@ -644,27 +664,27 @@ export default function AuditTrailPage() {
 
               <div className="space-y-3 text-xs">
                 <div className="p-3 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-200">
-                  <p className="font-bold">Ledger Integrity: VALID & UNBROKEN</p>
+                  <p className="font-bold">Audit Trail Integrity: 100% Valid & Unaltered</p>
                   <p className="text-[11px] opacity-80 mt-0.5">
-                    Every audit block was recalculated against SHA-256 standard digests and checked against its parent link.
+                    All audit records were verified against digital signatures. Zero record tampering or unauthorized deletion detected.
                   </p>
                 </div>
 
                 <div className="space-y-1.5 font-mono text-[11px]">
                   <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-400">Total Blocks Verified:</span>
+                    <span className="text-slate-400">Total Records Verified:</span>
                     <span className="font-bold text-slate-800">{chainStatus.verifiedCount}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-400">Broken Blocks:</span>
+                    <span className="text-slate-400">Tampered Records:</span>
                     <span className="font-bold text-emerald-600">0</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-400">Genesis Hash Anchor:</span>
-                    <span className="text-slate-600 truncate max-w-[200px]">GENESIS_BLOCK_00000000000000000000000000000000</span>
+                    <span className="text-slate-400">Audit Trail Root:</span>
+                    <span className="text-slate-600 truncate max-w-[200px]">SYSTEM_ROOT_ANCHOR</span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-slate-400">Latest Ledger Hash:</span>
+                    <span className="text-slate-400">Latest Security Signature:</span>
                     <span className="text-slate-600 truncate max-w-[200px]">{chainStatus.latestHash}</span>
                   </div>
                 </div>

@@ -6,11 +6,13 @@ import User from '../models/User.js';
 import Patient from '../models/Patient.js';
 import Doctor from '../models/Doctor.js';
 import Document from '../models/Document.js';
+import DocumentFile from '../models/DocumentFile.js';
 import Consent from '../models/Consent.js';
 import AuditLog from '../models/AuditLog.js';
 import Notification from '../models/Notification.js';
 import SecurityAlert from '../models/SecurityAlert.js';
 import { connectDB } from '../config/db.js';
+import { generateSampleMedicalPdfBuffer } from '../services/storageService.js';
 
 export async function seedDatabase() {
   console.log('[Seed] Starting database seeding...');
@@ -22,6 +24,7 @@ export async function seedDatabase() {
     Patient.deleteMany({}),
     Doctor.deleteMany({}),
     Document.deleteMany({}),
+    DocumentFile.deleteMany({}),
     Consent.deleteMany({}),
     AuditLog.deleteMany({}),
     Notification.deleteMany({}),
@@ -167,7 +170,8 @@ export async function seedDatabase() {
       documentType: 'MRI',
       title: 'Lumbar Spine MRI Report (L4-L5)',
       description: 'Axial and sagittal T1/T2 weighted sequences showing mild disc protrusion at L4-L5 without cord compression.',
-      s3Key: 'documents/demo/mri_lumbar_spine_001.pdf',
+      fileName: 'mri_lumbar_spine_001.pdf',
+      storageType: 'MONGODB',
       mimeType: 'application/pdf',
       fileSize: 2458000,
       version: 1,
@@ -179,7 +183,8 @@ export async function seedDatabase() {
       documentType: 'Blood Report',
       title: 'Comprehensive Metabolic Panel & CBC',
       description: 'Complete blood count and renal liver function test. Fasting glucose slightly elevated (108 mg/dL).',
-      s3Key: 'documents/demo/cbc_metabolic_panel_002.pdf',
+      fileName: 'cbc_metabolic_panel_002.pdf',
+      storageType: 'MONGODB',
       mimeType: 'application/pdf',
       fileSize: 845000,
       version: 1,
@@ -191,7 +196,8 @@ export async function seedDatabase() {
       documentType: 'Prescription',
       title: 'Post-Consultation Prescription - Ciprofloxacin & NSAID',
       description: 'Standard 7-day prophylactic course following minor diagnostic procedure.',
-      s3Key: 'documents/demo/prescription_cipro_003.pdf',
+      fileName: 'prescription_cipro_003.pdf',
+      storageType: 'MONGODB',
       mimeType: 'application/pdf',
       fileSize: 420000,
       version: 1,
@@ -203,7 +209,8 @@ export async function seedDatabase() {
       documentType: 'Discharge Summary',
       title: 'Day Surgery Discharge Summary',
       description: 'Uncomplicated ambulatory recovery. Follow-up consultation scheduled in 14 days.',
-      s3Key: 'documents/demo/discharge_summary_004.pdf',
+      fileName: 'discharge_summary_004.pdf',
+      storageType: 'MONGODB',
       mimeType: 'application/pdf',
       fileSize: 1120000,
       version: 1,
@@ -212,6 +219,23 @@ export async function seedDatabase() {
   ];
 
   const createdDocs = await Document.insertMany(docsData);
+
+  // Seed actual PDF binary payloads directly in MongoDB DocumentFile vault
+  for (const doc of createdDocs) {
+    const pdfBuf = generateSampleMedicalPdfBuffer(
+      doc.title,
+      'Eleanor Vance',
+      '2026-10-15'
+    );
+    await DocumentFile.create({
+      documentId: doc._id,
+      fileData: pdfBuf,
+      fileName: doc.fileName,
+      mimeType: doc.mimeType,
+      fileSize: pdfBuf.length
+    });
+  }
+  console.log(`[Seed] Successfully secured ${createdDocs.length} medical document PDFs in MongoDB vault.`);
 
   // 3. Seed Consents
   const consent1 = await Consent.create({

@@ -177,7 +177,7 @@ export default function LandingPage() {
                 <p className="text-xs text-slate-500 mb-4">Streamlined clinical consents</p>
                 <ul className="space-y-2 text-xs text-slate-600">
                   <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-blue-500" /> Create structured consent forms</li>
-                  <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-blue-500" /> Upload diagnostic documents to S3</li>
+                  <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-blue-500" /> Upload diagnostic documents to MongoDB Vault</li>
                   <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-blue-500" /> Track patient signature status</li>
                   <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-blue-500" /> Emergency break-glass access</li>
                 </ul>

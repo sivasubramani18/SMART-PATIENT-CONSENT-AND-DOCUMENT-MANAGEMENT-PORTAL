@@ -39,9 +39,17 @@ const documentSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    storageType: {
+      type: String,
+      default: 'MONGODB'
+    },
     s3Key: {
       type: String,
-      required: true
+      default: ''
+    },
+    fileName: {
+      type: String,
+      default: ''
     },
     storageUrl: {
       type: String,

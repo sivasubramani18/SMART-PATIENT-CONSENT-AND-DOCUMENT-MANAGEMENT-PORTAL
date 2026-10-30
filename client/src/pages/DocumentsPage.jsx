@@ -522,7 +522,7 @@ export default function DocumentsPage() {
                 Patient: <strong className="text-slate-800">{previewDoc.patientId?.patientNumber || 'PAT-CURRENT'}</strong>
               </div>
               <div className="flex items-center gap-2 text-teal-700 font-mono text-[11px]">
-                <ShieldCheck className="w-3.5 h-3.5" /> Time-Limited Signed URL (AES-256)
+                <ShieldCheck className="w-3.5 h-3.5" /> MongoDB Encrypted Medical Vault
               </div>
             </div>
 
@@ -579,28 +579,35 @@ export default function DocumentsPage() {
 
             {/* Content Preview Canvas */}
             {previewTab === 'visual' ? (
-              <div className="flex-1 overflow-auto p-6 bg-slate-900 flex items-center justify-center min-h-[350px]">
+              <div className="flex-1 overflow-auto p-4 bg-slate-900 flex flex-col items-center justify-center min-h-[420px]">
                 {previewLoading ? (
-                  <div className="text-center text-white space-y-3">
+                  <div className="text-center text-white space-y-3 py-12">
                     <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="text-xs font-semibold text-slate-300">Generating secure pre-signed stream...</p>
+                    <p className="text-xs font-semibold text-slate-300">Retrieving document from MongoDB vault...</p>
                   </div>
                 ) : previewDoc.mimeType === 'application/pdf' ? (
-                  <div className="w-full h-full min-h-[480px] bg-white rounded-xl overflow-hidden shadow-inner flex flex-col items-center justify-center p-8 text-center">
-                    <FileText className="w-16 h-16 text-teal-600 mb-3" />
-                    <h4 className="text-base font-bold text-slate-800">{previewDoc.title}</h4>
-                    <p className="text-xs text-slate-500 max-w-md mt-1 mb-6">
-                      {previewDoc.description || 'This is a certified PDF diagnostic record.'}
-                    </p>
+                  <div className="w-full flex flex-col items-center gap-3">
+                    {previewUrl ? (
+                      <iframe
+                        src={previewUrl}
+                        title={previewDoc.title}
+                        className="w-full h-[460px] rounded-xl border border-slate-700 bg-white"
+                      />
+                    ) : (
+                      <div className="p-8 text-center text-white">
+                        <FileText className="w-16 h-16 text-teal-400 mx-auto mb-3" />
+                        <h4 className="text-base font-bold">{previewDoc.title}</h4>
+                      </div>
+                    )}
                     <div className="flex items-center gap-3">
                       <a
                         href={previewUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow"
+                        className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow"
                       >
                         <ExternalLink className="w-4 h-4" />
-                        Open Full Screen PDF Viewer
+                        Open in Full Screen Tab
                       </a>
                     </div>
                   </div>
@@ -696,7 +703,7 @@ export default function DocumentsPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Upload Medical Document</h3>
-                  <p className="text-xs text-slate-500">Secure S3 vault upload with audit logging</p>
+                  <p className="text-xs text-slate-500">Secure MongoDB vault upload with audit logging</p>
                 </div>
               </div>
               <button
@@ -711,7 +718,7 @@ export default function DocumentsPage() {
               <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2 animate-in zoom-in-95">
                 <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
                 <h4 className="text-base font-bold text-emerald-950">Document Uploaded Successfully!</h4>
-                <p className="text-xs text-emerald-700">Metadata archived to MongoDB, file secured in S3 vault, and patient notified.</p>
+                <p className="text-xs text-emerald-700">Document metadata and file payload secured directly in MongoDB vault, and patient notified.</p>
               </div>
             ) : (
               <form onSubmit={handleUploadSubmit} className="space-y-4">

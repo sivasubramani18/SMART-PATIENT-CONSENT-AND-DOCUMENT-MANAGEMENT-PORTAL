@@ -4,6 +4,7 @@ import {
   getDocuments,
   getDocumentById,
   getDocumentDownloadUrl,
+  streamDocumentFile,
   streamStorageFile,
   deleteDocument,
   triggerDocumentOcr
@@ -17,6 +18,7 @@ router.post('/', requireAuth, requireRole('DOCTOR', 'ADMIN'), upload.single('fil
 router.get('/', requireAuth, getDocuments);
 router.get('/:id', requireAuth, getDocumentById);
 router.get('/:id/download', requireAuth, getDocumentDownloadUrl);
+router.get('/:id/file', requireAuth, streamDocumentFile);
 router.get('/storage-stream/:s3Key', requireAuth, streamStorageFile);
 router.post('/:id/ocr', requireAuth, triggerDocumentOcr);
 router.delete('/:id', requireAuth, requireRole('DOCTOR', 'ADMIN'), deleteDocument);

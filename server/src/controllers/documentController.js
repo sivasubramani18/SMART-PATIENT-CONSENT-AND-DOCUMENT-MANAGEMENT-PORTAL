@@ -1,8 +1,15 @@
+import mongoose from 'mongoose';
 import Document from '../models/Document.js';
 import Patient from '../models/Patient.js';
 import Doctor from '../models/Doctor.js';
 import EmergencyAccess from '../models/EmergencyAccess.js';
-import { uploadFileToStorage, generateSignedFileUrl, getFileStream, getFileBuffer, isS3Active } from '../services/s3Service.js';
+import {
+  saveFileToStorage,
+  getFileFromStorage,
+  getFileBuffer,
+  deleteFileFromStorage,
+  generateSignedFileUrl
+} from '../services/storageService.js';
 import { logAudit } from '../services/auditService.js';
 import { createNotification } from '../services/notificationService.js';
 import { checkDocumentAccessSpike, flagUnauthorizedAttempt } from '../services/anomalyService.js';
@@ -54,10 +61,6 @@ export async function uploadDocument(req, res, next) {
     }
 
     const sanitizedFilename = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const s3Key = `documents/${patientId}/${Date.now()}_v${version}_${sanitizedFilename}`;
-
-    // Upload to Private S3 / Vault
-    await uploadFileToStorage(req.file.buffer, s3Key, req.file.mimetype);
 
     // Extract OCR text (Section 13)
     let extractedText = '';
@@ -74,13 +77,24 @@ export async function uploadDocument(req, res, next) {
       documentType,
       title: title.trim(),
       description: description ? description.trim() : '',
-      s3Key,
+      fileName: sanitizedFilename,
+      s3Key: '',
+      storageType: 'MONGODB',
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
       version,
       parentDocumentId: actualParentId,
       status: 'ACTIVE',
       extractedText
+    });
+
+    // Save binary file directly in MongoDB DocumentFile collection
+    await saveFileToStorage({
+      documentId: newDoc._id,
+      fileBuffer: req.file.buffer,
+      fileName: sanitizedFilename,
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size
     });
 
     // Audit Log (Section 26)
@@ -271,14 +285,14 @@ export async function getDocumentDownloadUrl(req, res, next) {
 
     // IDOR Check
     if (req.user.role === 'PATIENT') {
-      const patient = req.patient || await Patient.findOne({ userId: req.user._id });
+      const patient = req.patient || (await Patient.findOne({ userId: req.user._id }));
       if (!patient || !document.patientId._id.equals(patient._id)) {
         return res.status(403).json({ success: false, message: 'Unauthorized download request' });
       }
     }
 
-    // Generate signed URL (valid for 15 minutes)
-    const signedUrl = await generateSignedFileUrl(document.s3Key, document.mimeType, 900);
+    // Generate authenticated signed URL stored and served directly from MongoDB vault
+    const signedUrl = generateSignedFileUrl(document._id, req.user._id, req.user.role, '15m');
 
     // Audit Log (Section 26)
     await logAudit({
@@ -295,10 +309,13 @@ export async function getDocumentDownloadUrl(req, res, next) {
       metadata: { title: document.title, version: document.version }
     });
 
+    const extension = document.mimeType === 'application/pdf' ? '.pdf' : '.png';
+    const fileName = document.fileName || `${document.title.replace(/[^a-zA-Z0-9]/g, '_')}_v${document.version}${extension}`;
+
     return res.json({
       success: true,
       downloadUrl: signedUrl,
-      fileName: `${document.title.replace(/[^a-zA-Z0-9]/g, '_')}_v${document.version}${document.mimeType === 'application/pdf' ? '.pdf' : '.png'}`,
+      fileName,
       mimeType: document.mimeType,
       expiresInSeconds: 900
     });
@@ -307,36 +324,50 @@ export async function getDocumentDownloadUrl(req, res, next) {
   }
 }
 
-export async function streamStorageFile(req, res, next) {
+export async function streamDocumentFile(req, res, next) {
   try {
-    const s3Key = decodeURIComponent(req.params.s3Key);
-    const document = await Document.findOne({ s3Key }).populate('patientId');
+    const docId = req.params.id || req.params.s3Key;
+    let document = null;
 
+    if (mongoose.Types.ObjectId.isValid(docId)) {
+      document = await Document.findById(docId).populate('patientId');
+    }
+    if (!document && req.params.s3Key) {
+      document = await Document.findOne({ s3Key: decodeURIComponent(req.params.s3Key) }).populate('patientId');
+    }
     if (!document) {
-      // If demo placeholder
-      return res.status(404).json({ success: false, message: 'File not found in vault' });
+      return res.status(404).json({ success: false, message: 'File not found in MongoDB vault' });
     }
 
     // Authorization check
     if (req.user.role === 'PATIENT') {
-      const patient = req.patient || await Patient.findOne({ userId: req.user._id });
+      const patient = req.patient || (await Patient.findOne({ userId: req.user._id }));
       if (!patient || !document.patientId._id.equals(patient._id)) {
         return res.status(403).json({ success: false, message: 'Access denied' });
       }
     }
 
-    const stream = await getFileStream(s3Key);
-    if (!stream) {
-      return res.status(404).json({ success: false, message: 'File stream unavailable' });
+    const docFile = await getFileFromStorage(document._id);
+    if (!docFile || !docFile.fileData) {
+      return res.status(404).json({ success: false, message: 'File data unavailable in MongoDB' });
     }
 
-    res.setHeader('Content-Type', document.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(document.title)}"`);
-    stream.pipe(res);
+    const isDownload = req.query.download === 'true' || req.query.download === '1';
+    const disposition = isDownload ? 'attachment' : 'inline';
+    const cleanName = encodeURIComponent(docFile.fileName || `${document.title}.pdf`);
+
+    res.setHeader('Content-Type', docFile.mimeType || 'application/pdf');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${cleanName}"`);
+    res.setHeader('Content-Length', docFile.fileData.length);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.send(docFile.fileData);
   } catch (error) {
     next(error);
   }
 }
+
+// Keep alias for streamStorageFile
+export const streamStorageFile = streamDocumentFile;
 
 export async function deleteDocument(req, res, next) {
   try {
@@ -347,6 +378,9 @@ export async function deleteDocument(req, res, next) {
 
     document.status = 'ARCHIVED';
     await document.save();
+
+    // Delete binary payload from MongoDB
+    await deleteFileFromStorage(document._id);
 
     await logAudit({
       req,
@@ -379,7 +413,7 @@ export async function triggerDocumentOcr(req, res, next) {
 
     let buffer = null;
     try {
-      buffer = await getFileBuffer(document.s3Key);
+      buffer = await getFileBuffer(document._id);
     } catch (e) {
       console.warn('[GetFileBuffer Warning]:', e.message);
     }

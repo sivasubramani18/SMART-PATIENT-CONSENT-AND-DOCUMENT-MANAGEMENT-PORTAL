@@ -216,7 +216,7 @@ export default function AdminDashboard() {
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Vault Documents</span>
           <div className="text-2xl font-black text-slate-900 mt-1">{stats?.totalDocuments ?? 4}</div>
-          <div className="text-[10px] text-slate-500 font-semibold mt-0.5">S3 Objects</div>
+          <div className="text-[10px] text-teal-600 font-semibold mt-0.5">MongoDB Vault</div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-xs">
@@ -301,7 +301,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-sm font-bold text-slate-900">Monthly Document & Consent Ingestion</h3>
-              <p className="text-xs text-slate-500">Trajectory of new records uploaded to S3 vault</p>
+              <p className="text-xs text-slate-500">Trajectory of new records secured in MongoDB vault</p>
             </div>
             <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg">
               +28% MoM

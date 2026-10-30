@@ -2,7 +2,6 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Navbar from './components/layout/Navbar.jsx';
-import Footer from './components/layout/Footer.jsx';
 import ProtectedRoute from './components/common/ProtectedRoute.jsx';
 
 import LandingPage from './pages/LandingPage.jsx';
@@ -31,7 +30,6 @@ function MainLayout({ children }) {
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-1">{children}</main>
-      <Footer />
     </div>
   );
 }
@@ -114,7 +112,7 @@ export default function App() {
           <Route
             path="/audit-trail"
             element={
-              <ProtectedRoute allowedRoles={['PATIENT', 'DOCTOR', 'ADMIN', 'AUDITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'AUDITOR']}>
                 <AuditTrailPage />
               </ProtectedRoute>
             }
