@@ -14,6 +14,7 @@ import { logAudit } from '../services/auditService.js';
 import { createNotification } from '../services/notificationService.js';
 import { checkDocumentAccessSpike, flagUnauthorizedAttempt } from '../services/anomalyService.js';
 import { extractTextFromBuffer } from '../services/ocrService.js';
+import { sendConsentNotificationEmail } from '../services/emailService.js';
 
 export async function uploadDocument(req, res, next) {
   try {
@@ -126,6 +127,24 @@ export async function uploadDocument(req, res, next) {
         type: 'DOCUMENT_UPLOAD',
         link: '/documents'
       });
+    }
+
+    // Send email notification to siva431900@gmail.com when doctor uploads consent document
+    const isConsentDoc =
+      newDoc.documentType === 'Consent' ||
+      newDoc.title.toLowerCase().includes('consent') ||
+      req.user.role === 'DOCTOR';
+
+    if (isConsentDoc) {
+      sendConsentNotificationEmail({
+        doctorName: req.user.name,
+        patientName: patient?.userId?.name || 'Assigned Patient',
+        documentTitle: newDoc.title,
+        documentType: newDoc.documentType,
+        version: newDoc.version,
+        fileSize: newDoc.fileSize,
+        action: 'DOCUMENT_UPLOAD'
+      }).catch((err) => console.warn('[Email Warning]:', err.message));
     }
 
     return res.status(201).json({

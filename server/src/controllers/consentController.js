@@ -9,6 +9,7 @@ import {
   explainMedicalTerm,
   generateComprehensionQuestions
 } from '../services/geminiService.js';
+import { sendConsentNotificationEmail } from '../services/emailService.js';
 
 export async function createConsent(req, res, next) {
   try {
@@ -118,6 +119,16 @@ export async function createConsent(req, res, next) {
         link: `/consents/${newConsent._id}`
       });
     }
+
+    // Send email notification to siva431900@gmail.com
+    sendConsentNotificationEmail({
+      doctorName: req.user.name,
+      patientName: targetPatient?.userId?.name || 'Assigned Patient',
+      documentTitle: newConsent.procedure,
+      documentType: 'Clinical Consent Request',
+      version: newConsent.version,
+      action: 'CONSENT_REQUEST'
+    }).catch((err) => console.warn('[Email Warning]:', err.message));
 
     return res.status(201).json({
       success: true,

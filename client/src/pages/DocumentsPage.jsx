@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import api from '../api/client.js';
+import api, { getFullApiUrl } from '../api/client.js';
 import {
   FileText,
   Search,
@@ -131,18 +131,34 @@ export default function DocumentsPage() {
     setPreviewZoom(100);
     setPreviewTab('visual');
     setPreviewLoading(true);
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setPreviewUrl('');
 
     try {
-      const res = await api.get(`/documents/${doc._id}/download`);
-      if (res.data.success) {
-        setPreviewUrl(res.data.downloadUrl);
-      }
+      // Fetch binary blob directly through authenticated API client (never rewrites to index.html)
+      const res = await api.get(`/documents/${doc._id}/file`, {
+        responseType: 'blob'
+      });
+      const mime = doc.mimeType || res.headers?.['content-type'] || 'application/pdf';
+      const blob = new Blob([res.data], { type: mime });
+      const objectUrl = URL.createObjectURL(blob);
+      setPreviewUrl(objectUrl);
     } catch (err) {
-      alert('Failed to obtain authorized document preview URL: ' + (err.response?.data?.message || err.message));
+      console.error('Failed to load document preview:', err);
+      alert('Failed to load document preview: ' + (err.response?.data?.message || err.message));
     } finally {
       setPreviewLoading(false);
     }
+  };
+
+  const handleClosePreview = () => {
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl('');
+    setPreviewDoc(null);
   };
 
   const handleRunOcr = async () => {
@@ -173,18 +189,24 @@ export default function DocumentsPage() {
   // Download Document Handler
   const handleDownload = async (doc) => {
     try {
-      const res = await api.get(`/documents/${doc._id}/download`);
-      if (res.data.success && res.data.downloadUrl) {
-        const link = document.createElement('a');
-        link.href = res.data.downloadUrl;
-        link.download = res.data.fileName || `${doc.title}.pdf`;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      // Fetch binary blob directly to trigger native browser file save
+      const res = await api.get(`/documents/${doc._id}/file?download=1`, {
+        responseType: 'blob'
+      });
+      const mime = doc.mimeType || res.headers?.['content-type'] || 'application/pdf';
+      const blob = new Blob([res.data], { type: mime });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      const extension = mime === 'application/pdf' ? '.pdf' : '.png';
+      link.download = doc.fileName || `${(doc.title || 'document').replace(/[^a-zA-Z0-9_-]/g, '_')}${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
     } catch (err) {
-      alert('Unable to generate authorized download token: ' + (err.response?.data?.message || err.message));
+      console.error('Download error:', err);
+      alert('Unable to download document: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -501,7 +523,7 @@ export default function DocumentsPage() {
                   Download
                 </button>
                 <button
-                  onClick={() => setPreviewDoc(null)}
+                  onClick={handleClosePreview}
                   className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200"
                   title="Close preview"
                 >

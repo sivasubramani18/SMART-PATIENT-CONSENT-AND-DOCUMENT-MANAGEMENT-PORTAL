@@ -1,20 +1,31 @@
 import axios from 'axios';
 
-const getBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) {
-    const cleanUrl = envUrl.replace(/\/+$/, '');
-    return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
-  }
-  return '/api';
-};
+// Backend API configuration:
+// All backend routes are served under /api (e.g. /api/auth, /api/documents)
+const rawBaseUrl = import.meta.env.VITE_API_URL || '';
+export const API_BASE_URL = rawBaseUrl
+  ? `${rawBaseUrl.replace(/\/+$/, '').replace(/\/api$/, '')}/api`
+  : '/api';
 
 const api = axios.create({
-  baseURL: getBaseUrl(),
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+/**
+ * Resolves full URL for static assets, PDF streams, or file downloads
+ */
+export const getFullApiUrl = (path = '') => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:')) {
+    return path;
+  }
+  const serverOrigin = rawBaseUrl.replace(/\/+$/, '').replace(/\/api$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return serverOrigin ? `${serverOrigin}${cleanPath}` : cleanPath;
+};
 
 // Request interceptor to attach JWT token
 api.interceptors.request.use(
